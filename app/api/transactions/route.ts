@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 const USER_ID = 1;
 
 // GET /api/transactions — full buy/sell history, newest first.
