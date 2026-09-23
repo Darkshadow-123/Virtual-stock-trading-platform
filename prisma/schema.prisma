@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Single predefined user for the MVP — no auth required
+model User {
+  id           Int           @id @default(autoincrement())
+  name         String        @default("Demo Trader")
+  cashBalance  Decimal       @default(1000000) @db.Decimal(14, 2)
+  holdings     Holding[]
+  transactions Transaction[]
+}
+
+model Stock {
+  id           Int           @id @default(autoincrement())
+  symbol       String        @unique
+  name         String
+  prices       StockPrice[]
+  holdings     Holding[]
+  transactions Transaction[]
+}
+
+// One row per stock per 30-min interval, loaded from the CSV
+model StockPrice {
+  id        Int      @id @default(autoincrement())
+  stockId   Int
+  stock     Stock    @relation(fields: [stockId], references: [id])
+  timestamp DateTime
+  open      Decimal  @db.Decimal(10, 2)
+  high      Decimal  @db.Decimal(10, 2)
+  low       Decimal  @db.Decimal(10, 2)
+  close     Decimal  @db.Decimal(10, 2)
+  volume    Int
+
+  @@unique([stockId, timestamp])
+  @@index([stockId, timestamp])
+}
+
+// Current position per stock for the user
+model Holding {
+  id          Int     @id @default(autoincrement())
+  userId      Int
+  user        User    @relation(fields: [userId], references: [id])
+  stockId     Int
+  stock       Stock   @relation(fields: [stockId], references: [id])
+  quantity    Int
+  avgBuyPrice Decimal @db.Decimal(10, 2)
+
+  @@unique([userId, stockId])
+}
+
+enum TradeType {
+  BUY
+  SELL
+}
+
+// Full buy/sell history, executed at the price for the user-selected datetime
+model Transaction {
+  id                Int       @id @default(autoincrement())
+  userId            Int
+  user              User      @relation(fields: [userId], references: [id])
+  stockId           Int
+  stock             Stock     @relation(fields: [stockId], references: [id])
+  type              TradeType
+  quantity          Int
+  price             Decimal   @db.Decimal(10, 2)
+  simulatedDatetime DateTime // the market datetime the trade was executed at
+  createdAt         DateTime  @default(now())
+}
